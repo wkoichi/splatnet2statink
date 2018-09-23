@@ -750,6 +750,7 @@ def set_scoreboard(payload, battle_number, mystats, s_flag, battle_payload=None)
 # https://github.com/fetus-hina/stat.ink/blob/master/doc/api-2/post-battle.md
 def post_battle(i, results, s_flag, t_flag, m_flag, sendgears, debug, ismonitor=False):
 	'''Uploads battle #i from the provided results dictionary.'''
+	sendgears = False
 
 	#############
 	## PAYLOAD ##
