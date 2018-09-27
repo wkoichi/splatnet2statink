@@ -242,8 +242,8 @@ def check_for_updates():
 def main():
 	'''I/O and setup.'''
 
-	if check_for_updates():
-		exit(0)
+	# if check_for_updates():
+	# 	exit(0)
 
 	check_statink_key()
 	set_language()
