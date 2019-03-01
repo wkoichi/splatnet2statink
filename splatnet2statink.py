@@ -20,22 +20,29 @@ from distutils.version import StrictVersion
 from subprocess import call
 # PIL/Pillow imported at bottom
 
-A_VERSION = "1.4.0"
+A_VERSION = "1.4.2"
 
 print("splatnet2statink v{}".format(A_VERSION))
 
+# place config.txt in same directory as script (bundled or not)
+if getattr(sys, 'frozen', False):
+	app_path = os.path.dirname(sys.executable)
+elif __file__:
+	app_path = os.path.dirname(__file__)
+config_path = os.path.join(app_path, "config.txt")
+
 try:
-	config_file = open("config.txt", "r")
+	config_file = open(config_path, "r")
 	config_data = json.load(config_file)
 	config_file.close()
 except (IOError, ValueError):
 	print("Generating new config file.")
 	config_data = {"api_key": "", "cookie": "", "user_lang": "", "session_token": ""}
-	config_file = open("config.txt", "w")
+	config_file = open(config_path, "w")
 	config_file.seek(0)
 	config_file.write(json.dumps(config_data, indent=4, sort_keys=True, separators=(',', ': ')))
 	config_file.close()
-	config_file = open("config.txt", "r")
+	config_file = open(config_path, "r")
 	config_data = json.load(config_file)
 	config_file.close()
 
@@ -55,7 +62,7 @@ debug = False # print out payload and exit. can use with geargrabber2.py & savin
 if "app_timezone_offset" in config_data:
 	app_timezone_offset = str(config_data["app_timezone_offset"])
 else:
-	app_timezone_offset = str(int(time.timezone/60))
+	app_timezone_offset = str(int((time.mktime(time.gmtime()) - time.mktime(time.localtime()))/60))
 
 if "app_unique_id" in config_data:
 	app_unique_id = str(config_data["app_unique_id"])
@@ -135,17 +142,20 @@ def gen_new_cookie(reason):
 		acc_name, new_cookie = iksm.get_cookie(SESSION_TOKEN, USER_LANG, A_VERSION)
 	config_data["cookie"] = new_cookie
 	write_config(config_data)
-	print("Wrote iksm_session cookie for {} to config.txt.".format(acc_name))
+	if manual:
+		print("Wrote iksm_session cookie to config.txt.")
+	else:
+		print("Wrote iksm_session cookie for {} to config.txt.".format(acc_name))
 
 def write_config(tokens):
 	'''Writes config file and updates the global variables.'''
 
-	config_file = open("config.txt", "w")
+	config_file = open(config_path, "w")
 	config_file.seek(0)
 	config_file.write(json.dumps(tokens, indent=4, sort_keys=True, separators=(',', ': ')))
 	config_file.close()
 
-	config_file = open("config.txt", "r")
+	config_file = open(config_path, "r")
 	config_data = json.load(config_file)
 
 	global API_KEY
@@ -213,9 +223,9 @@ def check_for_updates():
 	try:
 		update_available = StrictVersion(new_version) != StrictVersion(A_VERSION)
 		if update_available:
-			print("There is a new version available.")
+			print("There is a new version (v{}) available.".format(new_version), end='')
 			if os.path.isdir(".git"): # git user
-				update_now = input("Would you like to update now? [Y/n] ")
+				update_now = input("\nWould you like to update now? [Y/n] ")
 				if update_now == "" or update_now[0].lower() == "y":
 					FNULL = open(os.devnull, "w")
 					call(["git", "checkout", "."], stdout=FNULL, stderr=FNULL)
@@ -224,18 +234,21 @@ def check_for_updates():
 					print("Successfully updated to v{}. Please restart splatnet2statink.".format(new_version))
 					return True
 				else:
-					print("Remember to update later with \"git pull\" to get the latest version.")
+					print("Remember to update later with \"git pull\" to get the latest version.\n")
 			else: # non-git user
-				print("Visit the site below to update:\nhttps://github.com/frozenpandaman/splatnet2statink\n")
+				print(" Visit the site below to update:\nhttps://github.com/frozenpandaman/splatnet2statink\n")
 				# dbs_freshness = time.time() - os.path.getmtime("dbs.py")
-				latest_db = requests.get("https://raw.githubusercontent.com/frozenpandaman/splatnet2statink/master/dbs.py")
-				try:
-					if latest_db.status_code == 200: # require proper response from github
-						local_db = open("dbs.py", "w")
-						local_db.write(latest_db.text)
-						local_db.close()
-				except: # if we can't open the file
-					pass # then we don't modify the database
+				if getattr(sys, 'frozen', False): # bundled
+					pass
+				else:
+					latest_db = requests.get("https://raw.githubusercontent.com/frozenpandaman/splatnet2statink/master/dbs.py")
+					try:
+						if latest_db.status_code == 200: # require proper response from github
+							local_db = open("dbs.py", "w")
+							local_db.write(latest_db.text)
+							local_db.close()
+					except: # if we can't open the file
+						pass # then we don't modify the database
 	except: # if there's a problem connecting to github
 		pass # then we assume there's no update available
 
